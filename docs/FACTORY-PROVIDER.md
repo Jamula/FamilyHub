@@ -1,6 +1,6 @@
 # Factory provider decision
 
-Issue #38 · documentation checked 2026-10-25 · **live dispatch remains disabled**.
+Issue #38 · research checked 2026-10-25; reopened 2026-11-23 for unverified live authorization, no-overage enforcement, trusted correlation and cancellation. **Live dispatch remains disabled.** Previous evidence is not operational acceptance.
 
 The cheapest next step is to finish the mock controller and privately prove an already-authorized included-usage route. Do not purchase a plan, use a workplace entitlement for a personal project without permission, or treat a visible agent button as spending authorization. This document records documentation evidence, not a completed account trial.
 

@@ -12,3 +12,4 @@
 - Verify deployed source/version and the intended behavior after activation. Report code merged, deployment, configuration and live verification separately, including any blocked checks. A successful build alone is not proof of a working production feature.
 - The factory planner is read-only and cannot dispatch agents. Labels alone never authorize execution. Provider entitlement, usage controls, scoped credentials and durable duplicate-run protection remain prerequisites for activation.
 - Keep reports concise: problem, final behavior, tests actually run, and unresolved rollout risks. Preserve manual review and the existing deployment validation gate.
+- Keep pre-MVP product version frozen at `0.1.0`; `VERSION`, package manifest and root lockfile must match. No automated release tag or publication without distinct owner approval. See `docs/VERSIONING.md`.
