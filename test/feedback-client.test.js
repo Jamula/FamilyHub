@@ -186,8 +186,11 @@ test('feedback auth expiry locks the shared app, while a room 403 does not signa
   const c=await client();c.setIntercept(({url})=>url.startsWith('/api/feedback?')?status==='opaque'?{type:'opaqueredirect',status:0,redirected:false,headers:new Headers(),body:null,json(){throw Error('opaque redirect body must not be read');}}:Response.json({error:'Access denied'},{status}):undefined);
   await assert.rejects(c.hooks.listFeedback());
   assert.equal(c.events.includes('hub-session-locked'),status==='opaque'||status===401);
-  assert.equal(c.requests.at(-1).url.startsWith('/api/feedback?'),true);
-  assert.equal(c.requests.at(-1).options.redirect,'manual');
+  const feedbackCall=c.requests.findLast(entry=>entry.url.startsWith('/api/feedback?'));
+  assert.ok(feedbackCall);
+  assert.equal(feedbackCall.options.redirect,'manual');
+  // A same-identity 403 now performs a separate /api/me security recheck.
+  if(status===403)assert.equal(c.requests.at(-1).url,'/api/me');
  }
 });
 
