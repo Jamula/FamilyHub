@@ -33,9 +33,27 @@ feedbackRecovery.append(feedbackRecoveryHelp,feedbackIssueLabel,feedbackRecover)
 
 let feedbackMe,feedbackId=null,feedbackContext='unspecified',feedbackDraft=null,feedbackSelected=null,feedbackPublic=null,feedbackCursor=null,feedbackNextCursor=null,feedbackCursorHistory=[],feedbackVersion=0,feedbackBusy=false,feedbackAvailable=false,feedbackPage=null,feedbackOpening=0; 
 function feedbackAuthExpired(){document.dispatchEvent(new Event('hub-session-locked'));}
+// A JSON 403 could be a normal same-account denial OR a different family member
+// taking over the browser session. Verify before retaining private report pixels.
+async function feedbackSameVerifiedIdentity(expected){
+ if(!expected?.id||!expected?.role)return false;
+ try{
+  const response=await fetch('/api/me',{method:'GET',credentials:'same-origin',cache:'no-store',redirect:'manual',signal:AbortSignal.timeout(10000)});
+  if(response.type==='opaqueredirect'||response.status!==200||response.redirected||!response.headers.get('content-type')?.includes('application/json')){
+   await response.body?.cancel().catch(()=>{});return false;
+  }
+  const current=await response.json();
+  return current?.id===expected.id&&current?.role===expected.role&&feedbackMe?.id===expected.id&&feedbackMe?.role===expected.role;
+ }catch{return false;}
+}
 async function feedbackRequest(route,body){
+ const expectedIdentity=feedbackMe?{id:feedbackMe.id,role:feedbackMe.role}:null;
  let response;try{response=await fetch('/api/feedback'+route,{method:body?'POST':'GET',credentials:'same-origin',cache:'no-store',headers:body?{'content-type':'application/json'}:{},body:body?JSON.stringify(body):undefined,redirect:'manual',signal:AbortSignal.timeout(15000)});}catch{throw Error('Feedback could not be confirmed. Keep your draft and retry the same report after checking your connection or sign-in.');}
  if(response.type==='opaqueredirect'||response.status===401||response.status>=300&&response.status<400||response.redirected||response.headers.get('content-type')?.includes('text/html')){await response.body?.cancel().catch(()=>{});feedbackAuthExpired();throw Error('Sign in to the Hub again, then retry this same report. Your draft has not been cleared.');}
+ if(response.status===403&&!await feedbackSameVerifiedIdentity(expectedIdentity)){
+  await response.body?.cancel().catch(()=>{});feedbackAuthExpired();
+  throw Error('Your verified account changed or could not be confirmed. Reload and sign in again before accessing private feedback.');
+ }
  let data;try{data=await response.json();}catch{throw Error('Feedback could not be confirmed. Keep your draft and retry the same report.');}
  if(!response.ok)throw Error(data.error||'Feedback request failed. Your draft has not been cleared.');return data;
 }

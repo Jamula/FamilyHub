@@ -196,3 +196,22 @@ test('an opaque login redirect on initial identity lookup requests the shared se
  c.setIntercept(({url})=>url==='/api/me'?{type:'opaqueredirect',status:0,redirected:false,headers:new Headers(),body:null,json(){throw Error('opaque redirect body must not be read');}}:undefined);
  await assert.rejects(c.hooks.openFeedback());assert.equal(c.events.includes('hub-session-locked'),true);
 });
+
+test('feedback JSON 403 revalidates account: same user keeps draft, changed or unknown account locks private UI',async()=>{
+ for(const identity of ['same','changed','unknown']){
+  const c=await client();
+  await c.hooks.showFeedbackReport('synthetic-id');
+  assert.equal(c.elements['feedback-report'].hidden,false);
+  c.setIntercept(({url})=>{
+   if(url==='/api/me'){
+    if(identity==='unknown')return {type:'opaqueredirect',status:0,redirected:false,headers:new Headers(),body:null,json(){throw Error('Opaque identity must not be read');}};
+    return Response.json(identity==='same'?{id:'iyanah',role:'child'}:{id:'aarish',role:'child'});
+   }
+   if(url.startsWith('/api/feedback?'))return Response.json({error:'Access denied'},{status:403});
+  });
+  await assert.rejects(c.hooks.listFeedback());
+  assert.equal(c.events.includes('hub-session-locked'),identity!=='same',identity);
+  assert.equal(c.requests.at(-1).url,'/api/me',identity);
+  assert.equal(c.requests.at(-1).options.redirect,'manual',identity);
+ }
+});
