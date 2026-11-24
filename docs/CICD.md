@@ -18,6 +18,15 @@ The intended pipeline is a public GitHub source repository → Cloudflare Worker
 
 The `Validate Family Hub` GitHub Actions workflow runs the same checks on pull requests and `main`. It uses standard public-repository runners, read-only repository access, pinned action revisions, and no deployment or runtime secrets. It performs no deployment, provider writes, or AI calls. It does not replace the native Cloudflare deployment pipeline. Branch protection must separately require its `validate` job; workflow presence alone does not enforce merge rules.
 
+## Product version and release policy
+
+Root `VERSION`, `package.json` and root `package-lock.json` share the stable
+pre-MVP `0.1.0` product SemVer. `npm run ci` enforces a matching version and the
+freeze until a separate owner-approved release decision. Product version is
+independent from pinned Node, Cloudflare Worker version and D1 migration ID.
+See [Versioning](VERSIONING.md) and [Changelog](../changelog.md). No release,
+tag or deployment is authorized by this documentation update.
+
 ## Secrets and access
 
 Google client credentials, refresh tokens, vault key and push signing key stay in existing Cloudflare runtime secrets/D1. Never put them in GitHub files, Actions variables, build logs, screenshots, or repository history. Builds do not need Google runtime credentials. Cloudflare deploy authentication belongs only in the native build integration. Grant the GitHub integration this repository only where supported. Creating a deployment credential requires owner authorization at setup time.
