@@ -80,10 +80,19 @@ async function openFeedback(id){
  try{
   const response=await fetch('/api/me',{cache:'no-store',credentials:'same-origin',redirect:'manual',signal:AbortSignal.timeout(15000)});
   if(response.type==='opaqueredirect'||response.status===401||response.status>=300&&response.status<400||response.redirected||response.headers.get('content-type')?.includes('text/html')){await response.body?.cancel().catch(()=>{});feedbackAuthExpired();throw Error('Sign in to the Hub to save feedback. Your draft stays here.');}
-  if(!response.ok||!response.headers.get('content-type')?.includes('application/json'))throw Error('Sign in to the Hub to save feedback. Your draft stays here.');
-  feedbackMe=await response.json();
+  if(!response.ok||!response.headers.get('content-type')?.includes('application/json')){
+   // Initial identity verification cannot distinguish a revoked login from a
+   // switched family member on 403. Do not retain private feedback in either case.
+   if(response.status===403){await response.body?.cancel().catch(()=>{});feedbackAuthExpired();}
+   throw Error('Sign in to the Hub to save feedback. Your draft stays here.');
+  }
+  const verified=await response.json();
   const shown=feedbackEl('identity')?.textContent;
-  if(shown&&shown!=='Welcome, '+feedbackMe.name+' · '+feedbackMe.role)throw Error('Reload the Hub to verify your account before capturing a page or submitting feedback.');
+  if(shown&&shown!=='Welcome, '+verified.name+' · '+verified.role){
+   feedbackAuthExpired();
+   throw Error('Reload the Hub to verify your account before capturing a page or submitting feedback.');
+  }
+  feedbackMe=verified;
   if(id){discardFeedbackPage();feedbackSource.value='none';feedbackEl('feedback-image-consent').checked=false;}
   if(!id){const captured=await captureFeedbackPage().catch(()=>null);if(ticket!==feedbackOpening||dialog.isConnected===false)return;discardFeedbackPage();feedbackPage=captured;feedbackSource.value='none';feedbackPageStatus.textContent=captured?'Local page preview ready. Choose it to review, then allow attachment. It may differ from your screen.':'Page capture was unavailable. Text feedback and image upload still work.';}
  }catch(error){if(ticket===feedbackOpening&&dialog.isConnected!==false)dialog.showModal();discardFeedbackPage();throw error;}
