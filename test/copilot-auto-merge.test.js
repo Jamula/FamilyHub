@@ -132,6 +132,35 @@ test('a review dismissed during retry resets its check and prevents auto-merge',
  assert.equal(f.calls[1].args.status,'in_progress');assert.equal(f.calls[1].args.check_run_id,9);assert.equal(f.calls[1].args.conclusion,undefined);
 });
 
+test('newer exact-head COMMENTED review during unstable retry resets approved check and blocks merge',async()=>{
+ const f=fixture({reviews:[review({id:1,state:'APPROVED'})]});
+ const paginate=f.github.paginate;let reviewReads=0,mutations=0;
+ f.github.paginate=async(method,args)=>{
+  if(method===f.github.rest.pulls.listReviews&&++reviewReads===2)return [
+   review({id:1,state:'APPROVED'}),
+   review({id:2,state:'COMMENTED',body:'Changes recommended: fix access boundary'})
+  ];
+  if(method===f.github.rest.checks.listForRef&&reviewReads===2)
+   return [{id:9,name:COPILOT_REVIEW_CHECK,app:{slug:'github-actions'}}];
+  return paginate(method,args);
+ };
+ const graphql=f.github.graphql;
+ f.github.graphql=async(q,a)=>{
+  if(q.startsWith('mutation')){mutations++;throw Object.assign(new Error('synthetic unstable'),{
+   errors:[{type:'UNPROCESSABLE',message:'Pull request Pull request is in unstable status'}]
+  });}
+  return graphql(q,a);
+ };
+ await reconcilePullRequests({...f,wait:async()=>{}});
+ assert.equal(mutations,1,'never retry merge registration after a newer comment');
+ assert.equal(f.calls.length,2);
+ assert.equal(f.calls[0].args.conclusion,'success');
+ assert.equal(f.calls[1].args.status,'in_progress');
+ assert.equal(f.calls[1].args.check_run_id,9);
+ assert.equal(f.calls[1].args.conclusion,undefined);
+ assert.equal(f.calls.some(c=>c.kind==='enable'),false);
+});
+
 const cleanError=()=>Object.assign(Error('synthetic clean rejection'),{errors:[{type:'UNPROCESSABLE',message:'Pull request Pull request is in clean status'}]});
 
 test('a clean-status rejection requires owner action and cannot stop a later PR',async()=>{
