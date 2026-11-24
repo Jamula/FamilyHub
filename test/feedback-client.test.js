@@ -18,10 +18,10 @@ async function client({capture=async()=>null,autoOpen=true}={}){
  }
  for(const match of html.matchAll(/<([\w-]+)\b([^>]*\bid="([^"]+)"[^>]*)>/g)){const el=new Element(match[1]);el.hidden=/\bhidden\b/.test(match[2]);el.disabled=/\bdisabled\b/.test(match[2]);elements[match[3]]=el;}
  const triage=new Element('details');
- const document={getElementById:id=>elements[id],createElement:tag=>new Element(tag),createTextNode:text=>String(text),querySelector:selector=>selector==='#feedback-dialog details.panel'?triage:{dataset:{view:'chat'}}};
+ const document={getElementById:id=>elements[id],createElement:tag=>new Element(tag),createTextNode:text=>String(text),dispatchEvent:event=>{events.push(event.type);return true;},querySelector:selector=>selector==='#feedback-dialog details.panel'?triage:{dataset:{view:'chat'}}};
  class SafeURL extends URL{static createObjectURL(){const url='blob:synthetic-'+objects.length;objects.push(url);return url;}static revokeObjectURL(url){objects.push('revoked:'+url);}}
- const sandbox={document,AbortSignal,captureFeedbackPage:async()=>{events.push('capture');return capture();},window:{location:{hash:''},addEventListener(){}},crypto,URL:SafeURL,Uint8Array,btoa,createImageBitmap:async()=>({width:1,height:1,close(){}}),fetch:async(url,options={})=>{
-  const body=options.body?JSON.parse(options.body):undefined;const entry={url,body};requests.push(entry);const override=await intercept?.(entry);if(override)return override;
+ const sandbox={document,Event,AbortSignal,captureFeedbackPage:async()=>{events.push('capture');return capture();},window:{location:{hash:''},addEventListener(){}},crypto,URL:SafeURL,Uint8Array,btoa,createImageBitmap:async()=>({width:1,height:1,close(){}}),fetch:async(url,options={})=>{
+  const body=options.body?JSON.parse(options.body):undefined;const entry={url,body,options};requests.push(entry);const override=await intercept?.(entry);if(override)return override;
   if(url==='/api/me')return Response.json({id:'iyanah',name:'Iyanah',role:'child'});
   if(url.endsWith('/config'))return Response.json({enabled:true});
   if(url.endsWith('/submit'))return Response.json({id:body.id,state:'pending'});
@@ -179,4 +179,71 @@ test('disabled feedback setup is explicit and prevents the normal save controls'
 });
 test('closing or starting a new report drops the captured page',async()=>{
  const page={type:'image/jpeg',size:12};for(const button of ['feedback-close','feedback-new']){const c=await client({capture:async()=>page});assert.equal(c.hooks.getPage(),page);c.elements[button].onclick();assert.equal(c.hooks.getPage(),null);assert.equal(c.elements['feedback-screenshot-source'].value,'none');}
+});
+
+test('feedback auth expiry locks the shared app, while a room 403 does not signal session loss',async()=>{
+ for(const status of [401,403,'opaque']){
+  const c=await client();c.setIntercept(({url})=>url.startsWith('/api/feedback?')?status==='opaque'?{type:'opaqueredirect',status:0,redirected:false,headers:new Headers(),body:null,json(){throw Error('opaque redirect body must not be read');}}:Response.json({error:'Access denied'},{status}):undefined);
+  await assert.rejects(c.hooks.listFeedback());
+  assert.equal(c.events.includes('hub-session-locked'),status==='opaque'||status===401);
+  const feedbackCall=c.requests.findLast(entry=>entry.url.startsWith('/api/feedback?'));
+  assert.ok(feedbackCall);
+  assert.equal(feedbackCall.options.redirect,'manual');
+  // A same-identity 403 now performs a separate /api/me security recheck.
+  if(status===403)assert.equal(c.requests.at(-1).url,'/api/me');
+ }
+});
+
+test('an opaque login redirect on initial identity lookup requests the shared session lock',async()=>{
+ const c=await client({autoOpen:false});
+ c.setIntercept(({url})=>url==='/api/me'?{type:'opaqueredirect',status:0,redirected:false,headers:new Headers(),body:null,json(){throw Error('opaque redirect body must not be read');}}:undefined);
+ await assert.rejects(c.hooks.openFeedback());assert.equal(c.events.includes('hub-session-locked'),true);
+});
+
+test('feedback JSON 403 revalidates account: same user keeps draft, changed or unknown account locks private UI',async()=>{
+ for(const identity of ['same','changed','unknown']){
+  const c=await client();
+  await c.hooks.showFeedbackReport('synthetic-id');
+  assert.equal(c.elements['feedback-report'].hidden,false);
+  c.setIntercept(({url})=>{
+   if(url==='/api/me'){
+    if(identity==='unknown')return {type:'opaqueredirect',status:0,redirected:false,headers:new Headers(),body:null,json(){throw Error('Opaque identity must not be read');}};
+    return Response.json(identity==='same'?{id:'iyanah',role:'child'}:{id:'aarish',role:'child'});
+   }
+   if(url.startsWith('/api/feedback?'))return Response.json({error:'Access denied'},{status:403});
+  });
+  await assert.rejects(c.hooks.listFeedback());
+  assert.equal(c.events.includes('hub-session-locked'),identity!=='same',identity);
+  assert.equal(c.requests.at(-1).url,'/api/me',identity);
+  assert.equal(c.requests.at(-1).options.redirect,'manual',identity);
+ }
+});
+
+test('initial feedback identity 403 or mismatch locks stale private UI, but service 503 does not',async()=>{
+ for(const kind of ['forbidden','mismatch','temporary']){
+  const c=await client();
+  await c.hooks.showFeedbackReport('synthetic-id');
+  assert.equal(c.elements['feedback-report'].hidden,false);
+  c.elements.identity.textContent='Welcome, Iyanah · child';
+  c.setIntercept(({url})=>{
+   if(url!=='/api/me')return;
+   if(kind==='forbidden')return Response.json({error:'Denied'},{status:403});
+   if(kind==='temporary')return Response.json({error:'Service temporarily unavailable'},{status:503});
+   return Response.json({id:'aarish',name:'Aarish',role:'child'});
+  });
+  await assert.rejects(c.hooks.openFeedback());
+  assert.equal(c.events.includes('hub-session-locked'),kind!=='temporary',kind);
+  assert.equal(c.requests.at(-1).url,'/api/me',kind);
+  assert.equal(c.requests.at(-1).options.redirect,'manual',kind);
+ }
+});
+
+test('feedback initial identity recheck detects account swap when host identity label is unavailable',async()=>{
+ const c=await client();
+ await c.hooks.showFeedbackReport('synthetic-id');
+ assert.equal(c.elements['feedback-report'].hidden,false);
+ c.setIntercept(({url})=>url==='/api/me'?Response.json({id:'aarish',name:'Aarish',role:'child'}):undefined);
+ await assert.rejects(c.hooks.openFeedback(),/Reload the Hub/);
+ assert.equal(c.events.includes('hub-session-locked'),true);
+ assert.equal(c.requests.at(-1).url,'/api/me');
 });
