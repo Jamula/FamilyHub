@@ -218,3 +218,22 @@ test('feedback JSON 403 revalidates account: same user keeps draft, changed or u
   assert.equal(c.requests.at(-1).options.redirect,'manual',identity);
  }
 });
+
+test('initial feedback identity 403 or mismatch locks stale private UI, but service 503 does not',async()=>{
+ for(const kind of ['forbidden','mismatch','temporary']){
+  const c=await client();
+  await c.hooks.showFeedbackReport('synthetic-id');
+  assert.equal(c.elements['feedback-report'].hidden,false);
+  c.elements.identity.textContent='Welcome, Iyanah · child';
+  c.setIntercept(({url})=>{
+   if(url!=='/api/me')return;
+   if(kind==='forbidden')return Response.json({error:'Denied'},{status:403});
+   if(kind==='temporary')return Response.json({error:'Service temporarily unavailable'},{status:503});
+   return Response.json({id:'aarish',name:'Aarish',role:'child'});
+  });
+  await assert.rejects(c.hooks.openFeedback());
+  assert.equal(c.events.includes('hub-session-locked'),kind!=='temporary',kind);
+  assert.equal(c.requests.at(-1).url,'/api/me',kind);
+  assert.equal(c.requests.at(-1).options.redirect,'manual',kind);
+ }
+});
