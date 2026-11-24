@@ -237,3 +237,13 @@ test('initial feedback identity 403 or mismatch locks stale private UI, but serv
   assert.equal(c.requests.at(-1).options.redirect,'manual',kind);
  }
 });
+
+test('feedback initial identity recheck detects account swap when host identity label is unavailable',async()=>{
+ const c=await client();
+ await c.hooks.showFeedbackReport('synthetic-id');
+ assert.equal(c.elements['feedback-report'].hidden,false);
+ c.setIntercept(({url})=>url==='/api/me'?Response.json({id:'aarish',name:'Aarish',role:'child'}):undefined);
+ await assert.rejects(c.hooks.openFeedback(),/Reload the Hub/);
+ assert.equal(c.events.includes('hub-session-locked'),true);
+ assert.equal(c.requests.at(-1).url,'/api/me');
+});
