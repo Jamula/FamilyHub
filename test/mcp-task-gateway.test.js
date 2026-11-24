@@ -98,3 +98,38 @@ test('untrusted browser origins are rejected before authorization, body reads or
  }
  assert.equal(authorizations,2);
 });
+
+test('preflight and duplicate Origin cannot authorize a cross-origin browser write',async()=>{
+ let authorized=0,called=0;
+ const boundary={metadata:()=>Response.json({resource}),authorize:async(_request,scope)=>{
+  authorized++;return {member:{id:'fictional',role:'child'},scope};
+ }};
+ const gateway=createMcpTaskGateway({resource,boundary,backend:{read:async()=>{
+  called++;return {ok:true};
+ }}});
+ const preflight=new Request(resource,{method:'OPTIONS',headers:{
+  origin:'https://untrusted.example','access-control-request-method':'POST'
+ }});
+ const preflightResult=await gateway.handle(preflight);
+ assert.equal(preflightResult.status,405);
+ assert.equal(preflightResult.headers.get('access-control-allow-origin'),null);
+ const mixed=makeRequest('synthetic','tools/call','task_read',{taskId:'t'});
+ mixed.headers.set('origin','https://fixture.example');
+ mixed.headers.append('origin','https://untrusted.example');
+ assert.equal((await gateway.handle(mixed)).status,403);
+ const trailingDot=makeRequest('synthetic','tools/call','task_read',{taskId:'t'});
+ trailingDot.headers.set('origin','https://fixture.example.');
+ assert.equal((await gateway.handle(trailingDot)).status,403);
+ const badJson=new Request(resource,{method:'POST',headers:{
+  origin:'https://untrusted.example','content-type':'text/plain'
+ },body:'not a JSON request'});
+ assert.equal((await gateway.handle(badJson)).status,403);
+ assert.equal(authorized,0);
+ assert.equal(called,0);
+ // Public OAuth resource metadata is not task data and never authorizes a caller.
+ const metadata=await gateway.handle(new Request('https://fixture.example/.well-known/oauth-protected-resource/mcp',{
+  headers:{origin:'https://untrusted.example'}
+ }));
+ assert.equal(metadata.status,200);
+ assert.equal(authorized,0);
+});
