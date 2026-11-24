@@ -139,14 +139,33 @@ test('revoked member/client and wrong scope stop requests before backend or repl
  const restricted=await f.invoke(readOnly,'task_propose',propose('synthetic-b',1));
  assert.equal(restricted.status,403);
  assert.equal(f.receipts.size,0);
+ const args=propose('synthetic-a',1);
+ const saved=await f.invoke(child,'task_propose',args);
+ assert.equal(saved.status,200);
+ assert.equal(saved.body.result.isError,false);
+ const original=structuredClone(f.receipts.get('fictional-child-a:synthetic-a'));
+ const originalTask=structuredClone(f.tasks.get('synthetic-family'));
+ assert.deepEqual(original.receipt,saved.body.result.structuredContent.receipt);
+ assert.equal(originalTask.version,2);
+ const replay=await f.invoke(child,'task_propose',args);
+ assert.deepEqual(replay.body.result.structuredContent.receipt,original.receipt);
+ const assertUnchanged=()=>{
+  assert.equal(f.receipts.size,1);
+  assert.deepEqual(f.receipts.get('fictional-child-a:synthetic-a'),original);
+  assert.deepEqual(f.tasks.get('synthetic-family'),originalTask);
+ };
  f.clients.get('fictional-child-a').delete('client-one');
- const removedClient=await f.invoke(child,'task_read',get('synthetic-family'));
+ assert.equal((await f.invoke(child,'task_read',get('synthetic-family'))).status,401);
+ const removedClient=await f.invoke(child,'task_propose',args);
  assert.equal(removedClient.status,401);
+ assert.equal(removedClient.body,null);
+ assertUnchanged();
  f.clients.get('fictional-child-a').add('client-one');
  f.members.delete('fictional-child-a');
- const removedMember=await f.invoke(child,'task_propose',propose('synthetic-a',1));
+ const removedMember=await f.invoke(child,'task_propose',args);
  assert.equal(removedMember.status,401);
- assert.equal(f.tasks.get('synthetic-family').version,1);
+ assert.equal(removedMember.body,null);
+ assertUnchanged();
 });
 test('invalid tool arguments and unapproved external actions do not reach a writable backend',async()=>{
  const f=await fixture(),token=await f.token('fictional-child-a','client-one');
