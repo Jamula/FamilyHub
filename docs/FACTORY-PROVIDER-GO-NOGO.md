@@ -23,14 +23,17 @@
 | BILL-1 | Confirm correct personal/org billing entity, available included AI Credits, and explicitly disabled (or capped at owner-approved value) **Additional usage** | Not verified |
 | BILL-2 | Confirm Actions compute/runtime can neither incur unapproved overages nor consume unexpected other repositories' budget | Not verified |
 | AUTH-1 | Prove least-privilege **user** token and exact task API entitlement; no broad credential or new secret in GitHub issue | Not verified |
-| TASK-1 | Verify full task and session identity, repository, state, PR and workflow-run correlation with authoritative data | Unverified for start→run→PR |
-| STOP-1 | Prove a supported provider stop request, bounded result and both task/session termination without guessed ID mapping | Not verified |
-| STOP-2 | On missing cancellation, ambiguous result, timeout, wrong-repo mapping or 403, controller pauses and retains its one-task global lock | Synthetic tests are groundwork only |
-| CTRL-1 | One approved frozen public/synthetic scope, exact allowed files, authorizations rechecked on dispatch and after recovery | Gate code is unmounted |
-| PR-1 | Protected current-head CI, mandatory independent review and no automatic production merge or source exposure | Blocked by #81 |
-| ACCEPT-1 | One live bounded trial and separately authorized rollout + real reporting-user acceptance | Not run |
+| TASK-0 (before trial) | Verify an authorized read/start mechanism, exact repository binding, durable operation ID and a reliable task/session inspection path; unknown start must retain the global lock | Not verified |
+| STOP-0 (before trial) | Establish a supported, authenticated provider task/session stop path and fail-closed pause/cancellation logic **before any real start**; an Actions-run cancel alone is insufficient | Not verified |
+| CTRL-1 (before trial) | One approved frozen public/synthetic scope, exact allowed files, authorizations rechecked at dispatch, at most one claim and no automatic merge | Gate code is unmounted |
+| PR-1 (before merge) | Protected current-head CI and mandatory independent review, with a disabled automatic production merge path until #81 is verified | Blocked by #81 |
+| TRIAL-START (separate approval) | Owner explicitly authorizes **one** narrowly scoped trial after BILL-1/2, AUTH-1, TASK-0, STOP-0, CTRL-1 and applicable release-safety controls pass | Not approved |
+| TASK-1 (during/after trial) | Correlate the actual task, session, repository, PR and workflow run using authoritative returned IDs, not timing or names | Not run |
+| STOP-1 (during/after trial) | Demonstrate stop request, bounded response and both task/session terminal states; do not release an uncertain claim or allow another dispatch until proven | Not run |
+| STOP-2 (during/after trial) | Missing cancellation, 403, ambiguous result, timeout or wrong-repo mapping leaves controller paused with its one-task lock until authoritative recovery | Synthetic tests are groundwork only |
+| ACCEPT-1 (after trial) | Record reviewed trial results, obtain separate merge/rollout authorization, independently verify deployed source, and obtain reporting-user acceptance | Not run |
 
-**Policy: ANY failed or unknown gate means zero new dispatch.** If the owner explicitly approves a narrowly bounded live trial in a later turn, still perform a fresh preflight and launch at most one job. Never infer authorization from issue labels or this document.
+**Two distinct gates, no circular dependency:** Any failed or unknown **pre-trial** gate (BILL-1/2, AUTH-1, TASK-0, STOP-0, CTRL-1 or applicable release safety) means **zero live dispatch**, even if an issue asks to start. Only after those are verified and the owner separately authorizes TRIAL-START may exactly one bounded run begin. **Post-trial** gates (TASK-1, STOP-1/2 and ACCEPT-1) are evidence from that run and must pass before recovery can release the lock, any second run, rollout or production acceptance. A successful trial alone never grants merge or deploy approval. An unavailable provider task/session stop path remains a hard NO-GO; this clarification does not waive that prerequisite.
 
 ## Non-execution test matrix
 Use the existing mock tests under `test/factory-*.test.js` to simulate no entitlement, stale quota, revoked consent, cross-repository identity, duplicate event, ambiguous start, wrong workflow mapping, cancellation accepted but agent still running, expiration, and restart recovery. Successful synthetic tests demonstrate controller logic, **not** the vendor's real cancellation or overage behavior.
