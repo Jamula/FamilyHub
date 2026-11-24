@@ -74,7 +74,9 @@ async function fixture(){
     'mcp-protocol-version':protocol,'mcp-method':'tools/call','mcp-name':name
    },body:JSON.stringify(rpc)
   }));
-  return {status:response.status,body:await response.json()};
+  // Authorization can correctly return an empty 401/403. Do not parse a missing body.
+  const body=response.headers.get('content-type')?.includes('application/json')?await response.json():null;
+  return {status:response.status,body};
  }
  return {token,invoke,clients,members,tasks,receipts,get sideEffects(){return sideEffects}};
 }
