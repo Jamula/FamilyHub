@@ -74,3 +74,62 @@ test('read-only backend advertises no writes and rejects direct writes before di
  assert.equal((await read.json()).result.structuredContent.ok,true);assert.equal(calls.length,1);
  assert.throws(()=>createMcpTaskGateway({resource,boundary,backend:{read:async()=>({ok:true}),propose:null}}));
 });
+
+test('untrusted browser origins are rejected before authorization, body reads or task dispatch',async()=>{
+ let authorizations=0,bodyReads=0;
+ const boundary={metadata:()=>new Response(),authorize:async(_request,scope)=>{
+  authorizations++;return {member:{id:'fictional',role:'child'},scope};
+ }};
+ const gateway=createMcpTaskGateway({resource,boundary,backend:{read:async()=>({ok:true})}});
+ for(const origin of ['https://untrusted.example','null','https://fixture.example.evil.test','http://fixture.example','https://fixture.example:8443','https://fixture.example/','https://fixture.example https://untrusted.example']){
+  const req=makeRequest('synthetic','tools/call','task_read',{taskId:'t'});
+  req.headers.set('origin',origin);
+  const getReader=req.body.getReader.bind(req.body);
+  req.body.getReader=()=>{bodyReads++;return getReader();};
+  const response=await gateway.handle(req);
+  assert.equal(response.status,403,origin);
+  assert.equal(response.headers.get('cache-control'),'no-store');
+ }
+ assert.equal(authorizations,0);assert.equal(bodyReads,0);
+ for(const origin of [undefined,'https://fixture.example']){
+  const req=makeRequest('synthetic','tools/call','task_read',{taskId:'t'});
+  if(origin!==undefined)req.headers.set('origin',origin);
+  assert.equal((await gateway.handle(req)).status,200);
+ }
+ assert.equal(authorizations,2);
+});
+
+test('preflight and duplicate Origin cannot authorize a cross-origin browser write',async()=>{
+ let authorized=0,called=0;
+ const boundary={metadata:()=>Response.json({resource}),authorize:async(_request,scope)=>{
+  authorized++;return {member:{id:'fictional',role:'child'},scope};
+ }};
+ const gateway=createMcpTaskGateway({resource,boundary,backend:{read:async()=>{
+  called++;return {ok:true};
+ }}});
+ const preflight=new Request(resource,{method:'OPTIONS',headers:{
+  origin:'https://untrusted.example','access-control-request-method':'POST'
+ }});
+ const preflightResult=await gateway.handle(preflight);
+ assert.equal(preflightResult.status,405);
+ assert.equal(preflightResult.headers.get('access-control-allow-origin'),null);
+ const mixed=makeRequest('synthetic','tools/call','task_read',{taskId:'t'});
+ mixed.headers.set('origin','https://fixture.example');
+ mixed.headers.append('origin','https://untrusted.example');
+ assert.equal((await gateway.handle(mixed)).status,403);
+ const trailingDot=makeRequest('synthetic','tools/call','task_read',{taskId:'t'});
+ trailingDot.headers.set('origin','https://fixture.example.');
+ assert.equal((await gateway.handle(trailingDot)).status,403);
+ const badJson=new Request(resource,{method:'POST',headers:{
+  origin:'https://untrusted.example','content-type':'text/plain'
+ },body:'not a JSON request'});
+ assert.equal((await gateway.handle(badJson)).status,403);
+ assert.equal(authorized,0);
+ assert.equal(called,0);
+ // Public OAuth resource metadata is not task data and never authorizes a caller.
+ const metadata=await gateway.handle(new Request('https://fixture.example/.well-known/oauth-protected-resource/mcp',{
+  headers:{origin:'https://untrusted.example'}
+ }));
+ assert.equal(metadata.status,200);
+ assert.equal(authorized,0);
+});
