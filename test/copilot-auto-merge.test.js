@@ -40,24 +40,30 @@ function fixture({reviews=[],draft=false,autoMerge=false,existing=false,changed=
  const logs=[];const core={info:message=>logs.push({kind:'info',message}),warning:message=>logs.push({kind:'warning',message})};
  return {github,context,core,calls,pr,logs};
 }
-const review=(overrides={})=>({id:1,user:{login:'copilot-pull-request-reviewer[bot]',type:'Bot'},state:'COMMENTED',commit_id:'a'.repeat(40),...overrides});
+const review=(overrides={})=>({id:1,user:{login:'copilot-pull-request-reviewer[bot]',type:'Bot'},state:'APPROVED',commit_id:'a'.repeat(40),...overrides});
 
-test('Copilot review of the current commit enables squash auto-merge and passes the gate',async()=>{
- for(const state of ['COMMENTED','APPROVED']){
-  const f=fixture({reviews:[review({state})]});await reconcilePullRequests(f);
-  assert.equal(f.calls[0].args.head_sha,f.pr.head.sha);
-  assert.equal(f.calls[0].args.conclusion,'success');
-  assert.equal(f.calls[1].kind,'enable');
- }
+test('explicit Copilot approval on current head enables squash auto-merge and passes the gate',async()=>{
+ const f=fixture({reviews:[review()]});await reconcilePullRequests(f);
+ assert.equal(f.calls[0].args.head_sha,f.pr.head.sha);
+ assert.equal(f.calls[0].args.conclusion,'success');
+ assert.equal(f.calls[1].kind,'enable');
 });
 test('missing, old, human, spoofed, dismissed, or change-requesting reviews cannot pass the gate',async()=>{
- for(const reviews of [[],[review({commit_id:'b'.repeat(40)})],[review({user:{login:'owner',type:'User'}})],[review({user:{login:'copilot-pull-request-reviewer[bot]',type:'User'}})],[review({state:'DISMISSED'})],[review({state:'CHANGES_REQUESTED'})],[review(),review({id:2,state:'DISMISSED'})]]){
+ for(const reviews of [[],[review({state:'COMMENTED'})],[review({commit_id:'b'.repeat(40)})],[review({user:{login:'owner',type:'User'}})],[review({user:{login:'copilot-pull-request-reviewer[bot]',type:'User'}})],[review({state:'DISMISSED'})],[review({state:'CHANGES_REQUESTED'})],[review(),review({id:2,state:'DISMISSED'})]]){
   const f=fixture({reviews});await reconcilePullRequests(f);
   assert.equal(f.calls.length,1);
   assert.equal(f.calls[0].args.status,'in_progress');
   assert.equal(f.calls[0].args.conclusion,undefined);
  }
 });
+test('review-only comments with requested changes cannot grant a merge check even on exact head',async()=>{
+ const f=fixture({reviews:[review({state:'COMMENTED',body:'Changes recommended: fix privacy leakage'})]});
+ await reconcilePullRequests(f);
+ assert.equal(f.calls.length,1);
+ assert.equal(f.calls[0].args.status,'in_progress');
+ assert.equal(f.calls.some(c=>c.kind==='enable'),false);
+});
+
 test('drafts stay blocked even with a current review',async()=>{
  const f=fixture({draft:true,reviews:[review()]});await reconcilePullRequests(f);
  assert.equal(f.calls.length,1);assert.equal(f.calls[0].args.status,'in_progress');

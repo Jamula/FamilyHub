@@ -13,7 +13,8 @@ export async function reconcilePullRequests({github,context,core,wait=ms=>new Pr
   if(pr.state!=='open')continue;
   const reviews=await github.paginate(github.rest.pulls.listReviews,{...repo,pull_number:pr.number,per_page:100});
   const review=currentReview(reviews,pr.head.sha);
-  const reviewed=!pr.draft&&['APPROVED','COMMENTED'].includes(review?.state);
+  // A comment can include requested security fixes. Only explicit approval passes.
+  const reviewed=!pr.draft&&review?.state==='APPROVED';
   const checks=await github.paginate(github.rest.checks.listForRef,{...repo,ref:pr.head.sha,check_name:COPILOT_REVIEW_CHECK,per_page:100});
   const existing=checks.find(c=>c.name===COPILOT_REVIEW_CHECK&&c.app?.slug==='github-actions');
   const check={
@@ -78,7 +79,7 @@ export async function reconcilePullRequests({github,context,core,wait=ms=>new Pr
       core.info(`PR #${pr.number}: changed while waiting for mergeability.`);changedWhileWaiting=true;break;
      }
      const freshReviews=await github.paginate(github.rest.pulls.listReviews,{...repo,pull_number:pr.number,per_page:100});
-     if(!['APPROVED','COMMENTED'].includes(currentReview(freshReviews,pr.head.sha)?.state)){
+     if(currentReview(freshReviews,pr.head.sha)?.state!=='APPROVED'){
       // The old successful check must not outlive a dismissed review.
       const freshChecks=await github.paginate(github.rest.checks.listForRef,{...repo,ref:pr.head.sha,check_name:COPILOT_REVIEW_CHECK,per_page:100});
       const old=freshChecks.find(c=>c.name===COPILOT_REVIEW_CHECK&&c.app?.slug==='github-actions');
