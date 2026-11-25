@@ -1,4 +1,14 @@
-# Copilot auto-merge reconciliation
+# Copilot review enforcement and legacy reconciliation
+
+## Native ruleset (November 24, 2026)
+
+The owner manually disabled the privileged auto-merge workflow and removed all five ruleset bypass actors. The active default-branch ruleset requires one approval, dismisses stale approvals on reviewable pushes, requires resolved conversations, strict up-to-date validation and security/code-quality checks. Draft review requests are enabled; automatic reviews on each push are disabled. Batch changes and obtain an explicit Copilot approval for the exact final head before proposing a merge.
+
+Live test PR #99: previous approval for `3dbbabb` was dismissed after pushing `5fa9176`; with validation and security checks green, the ready PR was blocked until Copilot explicitly approved `5fa9176`, then became clean. No merge was attempted. Native approval rules accept eligible reviewers generally; the exact Copilot reviewer policy still requires checking reviewer identity and commit before autonomous merge. Do not infer approval from a workflow completion or COMMENTED state.
+
+PR #102 removes the disabled privileged workflow. Do not require its orphaned `copilot-review` status context or re-enable its script. Historical unit coverage is retained; the regression test asserts the workflow is absent. Existing owner-authorized native auto-merge registrations are independent and must be monitored against current-head approval and all required gates. Do not enable new auto-merge or merge/release/deploy without applicable authorization.
+
+## Historical implementation (retired; not current operational instructions)
 
 The repository-native workflow preserves its existing policy: a non-dismissed Copilot review of the exact current head enables the `copilot-review` gate, and all remaining rules/checks still apply. It may register squash auto-merge under the owner's configured policy. It never invokes a direct merge operation.
 

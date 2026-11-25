@@ -9,4 +9,4 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 1
     steps:
-      - run: echo "Copilot review changed; the trusted auto-merge workflow will reconcile."
+      - run: echo "Copilot review changed; verify the native ruleset and exact-head approval."
