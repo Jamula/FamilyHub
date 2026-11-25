@@ -247,3 +247,23 @@ test('feedback initial identity recheck detects account swap when host identity 
  assert.equal(c.events.includes('hub-session-locked'),true);
  assert.equal(c.requests.at(-1).url,'/api/me');
 });
+
+
+test('startup placeholder permits verified initial feedback without a false session lock',async()=>{
+ const c=await client({autoOpen:false});c.elements.identity.textContent='Signing in…';
+ await c.hooks.openFeedback();assert.equal(c.events.includes('hub-session-locked'),false);
+ assert.equal(c.requests.some(r=>r.url.endsWith('/config')),true);
+});
+test('startup placeholder cannot hide a changed previously verified feedback identity',async()=>{
+ const c=await client();c.elements.identity.textContent='Signing in…';
+ c.setIntercept(({url})=>url==='/api/me'?Response.json({id:'other-member',name:'Other',role:'child'}):undefined);
+ const before=c.requests.length;await assert.rejects(c.hooks.openFeedback(),/Reload the Hub/);
+ assert.equal(c.events.includes('hub-session-locked'),true);
+ assert.deepEqual(c.requests.slice(before).map(r=>r.url),['/api/me']);
+});
+test('a populated mismatched shell identity still locks before any feedback capture or reads',async()=>{
+ const c=await client({autoOpen:false});c.elements.identity.textContent='Welcome, Other · adult';
+ await assert.rejects(c.hooks.openFeedback(),/Reload the Hub/);
+ assert.equal(c.events.includes('hub-session-locked'),true);assert.equal(c.events.includes('capture'),false);
+ assert.deepEqual(c.requests.map(r=>r.url),['/api/me']);
+});
