@@ -197,6 +197,10 @@ renderer/vendor files, local database state and dependency directories are build
 outputs, not hand-edited source. Never commit `.dev.vars`, `.env` files, secrets,
 private screenshots, raw diagnostics or database dumps.
 
+## Engineering standards and local development targets
+
+The project adopts **95% measured source line coverage and 90% measured branch coverage**, with a compact, meaningful test suite including negative paths, exceptions and fault injection. Establish and publish a real coverage baseline before enforcing the targets. OpenTelemetry is the observability standard and Aspire the local orchestration target; these integrations are not yet accepted or claimed to be operational. Keep local development synthetic, private production data isolated and additional spending at $0. See [the contribution standard](CONTRIBUTING.md#engineering-quality-and-developer-experience) and [agent instructions](AGENTS.md).
+
 ## Contribute and hand work to another agent
 
 Read [CONTRIBUTING.md](CONTRIBUTING.md) and [AGENTS.md](AGENTS.md).
@@ -217,15 +221,14 @@ D1 migrations and Cloudflare deployment IDs. Do not tag or bump on ordinary PRs.
 4. Open a PR explaining the problem, resulting behavior, tests actually run and
    rollout limits. Address valid feedback, update/rebase behind branches and retest.
    Use expected-head/force-with-lease protection for rewritten branches; never force main.
-5. Preserve required validation, current-head Copilot review, security checks and
-   resolved-conversation gates. The repository's owner-configured workflow may enable
-   auto-merge after a qualifying current-head review; it does not grant live-action
-   approval. Agents must not independently merge, enable new auto-merge or weaken gates.
-   The visible main ruleset currently requires `validate` but does not list
-   `copilot-review`; classic branch protection could not be inspected with the
-   connected credential. [#81](https://github.com/cyrusjamula/family-hub/issues/81)
-   tracks owner verification/enforcement of the current-head review requirement.
-   A published informational check alone is not proof that merging requires it.
+5. Preserve required validation, current-head Copilot approval, security checks and
+   resolved-conversation gates. The native ruleset requires one approval, dismisses
+   stale approvals and has no bypass actors. Batch changes and request final-head
+   review before merge. The legacy auto-merge workflow is retired by #102; do not
+   require its orphaned `copilot-review` status or treat COMMENTED as approval.
+   Independently verify exact reviewer identity and head, all applicable checks and
+   owner authorization before merging. See [review enforcement](docs/FACTORY-AUTO-MERGE.md)
+   and [#81](https://github.com/cyrusjamula/family-hub/issues/81).
 6. Report **implemented → checks passed → merged → deployed → live/user accepted**
    separately. Update the issue with concise evidence and real blockers. Do not
    close an acceptance gate using only local or mocked proof.
