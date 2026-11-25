@@ -27,6 +27,7 @@ export function createPrivateAiFeedback({enabled=false,resolvePrincipal,verifyCo
    const origin='https://private-feedback.invalid';
    const request=new Request(origin+'/api/feedback/submit',{method:'POST',headers:{origin,'content-type':'application/json'},body:JSON.stringify(payload)});
    const response=await save(request,env,user,()=>{throw Error('External publication is not allowed');});
+   if(response.status===409)return {ok:false,error:'Submission ID conflict; review the existing submission if authorized, or obtain fresh consent for a new submission ID'};
    if(!response.ok)return response.status===403?denied():unavailable();
    const body=await response.json();
    if(body?.id!==payload.id||!['pending','published','rejected','uncertain','publishing'].includes(body.state))return unavailable();

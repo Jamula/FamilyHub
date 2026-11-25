@@ -31,3 +31,10 @@ test('storage exceptions, invalid acknowledgements and quota denial preserve ret
   assert.deepEqual(result,{ok:false,error:'Private feedback unavailable; preserve the draft and submission ID'});
  }
 });
+
+test('submission ID conflicts request fresh consent without leaking ownership or retrying blindly',async()=>{
+ let calls=0;const gateway=createPrivateAiFeedback({enabled:true,resolvePrincipal:async()=>actor,verifyConsent:async()=>true,save:async()=>{calls++;return Response.json({error:'private reporter details'},{status:409});}});
+ const result=await gateway.submit('verified-client',args,{});
+ assert.deepEqual(result,{ok:false,error:'Submission ID conflict; review the existing submission if authorized, or obtain fresh consent for a new submission ID'});
+ assert.equal(calls,1);
+});
