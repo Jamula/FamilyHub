@@ -23,3 +23,10 @@ test('async validation rejection still emits phase timing and propagates the ori
  await assert.rejects(timed('syntax',async()=>{throw failure;},{now:()=>0,log:s=>logs.push(s)}),error=>error===failure);
  assert.deepEqual(logs,['[ci timing] syntax: 0.00s']);
 });
+
+test('startup diagnostics distinguish missing executable and permission denied',()=>{
+ for(const code of ['ENOENT','EACCES']){
+  const cause=Object.assign(new Error('synthetic startup failure '+code),{code});
+  assert.throws(()=>runCommand('fixture',[],()=>({status:null,error:cause})),error=>error instanceof CommandFailure&&error.exitCode===1&&error.cause===cause&&error.message.includes(code)&&error.message.includes(cause.message));
+ }
+});

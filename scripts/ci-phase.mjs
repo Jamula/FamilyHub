@@ -2,7 +2,7 @@ import {spawnSync} from 'node:child_process';
 
 export class CommandFailure extends Error {
  constructor(command,result){
-  super(`Validation command ${command} failed (${result.signal??result.status??'unknown status'})`,{cause:result.error});
+  super(`Validation command ${command} failed (${result.signal??result.status??'unknown status'})${result.error?.code?' ['+result.error.code+']':''}${result.error?.message?': '+result.error.message:''}`,{cause:result.error});
   this.exitCode=Number.isInteger(result.status)&&result.status>0?result.status:1;
  }
 }
