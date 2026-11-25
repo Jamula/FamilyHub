@@ -18,6 +18,14 @@ The intended pipeline is a public GitHub source repository → Cloudflare Worker
 
 The `Validate Family Hub` GitHub Actions workflow runs the same checks on pull requests and `main`. It uses standard public-repository runners, read-only repository access, pinned action revisions, and no deployment or runtime secrets. It performs no deployment, provider writes, or AI calls. It does not replace the native Cloudflare deployment pipeline. Branch protection must separately require its `validate` job; workflow presence alone does not enforce merge rules.
 
+## CI measurement and coverage baseline
+
+GitHub Actions runs the existing test suite once with Node's built-in coverage instrumentation (no new package, separate runner, or second test invocation). Local developers can use `npm run test:coverage` for the test-only report or `npm run ci -- --coverage` for the full validated build with coverage. Standalone deployment validation remains unchanged. CI logs also record syntax, tests/coverage and build elapsed time; workflow job duration and review duration should be measured separately.
+
+The initial report includes executed repository JavaScript in `src/`, `public/`, and `scripts/`; generated `src/assets.js`, `src/build-version.js` and vendor assets are excluded. Treat this as an **observational baseline**, not proof of whole-repository coverage: Node may omit never-loaded modules, generated/child-process execution may not be represented, and browser behavior is not equivalent to Node execution. Reconcile the report against the tracked source inventory and verify per-critical-component results before enforcing 95% line and 90% branch targets. Missing source coverage must be investigated rather than treated as passing. No threshold is enabled until the baseline, inventory accounting and meaningful gap remediation are reviewed.
+
+Keep the existing required validation job, security scanning and exact-head review unchanged. Batch focused fixes before pushing; coordinate integration order so independent branches can develop concurrently without repeatedly refreshing all of them after each merge. Do not cancel the latest required check or trade review/security guarantees for faster merges.
+
 ## Product version and release policy
 
 Root `VERSION`, `package.json` and root `package-lock.json` share the stable

@@ -10,7 +10,8 @@
     "assets": "node scripts/build-assets.mjs",
     "build": "npm run assets && wrangler deploy --dry-run --outdir build",
     "ci": "node scripts/ci.mjs",
-    "migrate:production": "wrangler d1 migrations apply jamula-family-coordinator --remote"
+    "migrate:production": "wrangler d1 migrations apply jamula-family-coordinator --remote",
+    "test:coverage": "node --test --experimental-test-coverage --test-coverage-include=\"src/**/*.js\" --test-coverage-include=\"public/**/*.js\" --test-coverage-include=\"scripts/**/*.mjs\" --test-coverage-exclude=\"src/assets.js\" --test-coverage-exclude=\"src/build-version.js\" --test-coverage-exclude=\"public/vendor/**\""
   },
   "dependencies": {
     "@cloudflare/workers-oauth-provider": "1.2.4",
