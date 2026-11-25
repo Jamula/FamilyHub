@@ -151,7 +151,8 @@ async function showFeedbackReport(id){
  const row=await feedbackRequest('/report?id='+encodeURIComponent(id));feedbackSelected=row;clearPublicPreview();
  feedbackEl('feedback-triage').open=true;feedbackEl('feedback-report').hidden=false;feedbackEl('feedback-report-title').textContent=row.title;
  const details=feedbackEl('feedback-report-details');details.textContent=['Feedback ID: '+row.id,row.reporter+' · '+row.state,row.details,'Context: '+row.context,'Related request reference: '+(row.relatedRequestId||'none'),'Hub release: '+(row.release||'unknown'),'Public first-name permission: '+(row.includeName?'yes':'no')].join('\n\n');
- if(typeof row.issueUrl==='string'&&/^https:\/\/github\.com\/cyrusjamula\/family-hub\/issues\/[1-9]\d*$/.test(row.issueUrl)){const a=document.createElement('a');a.href=row.issueUrl;a.textContent='Open GitHub issue';a.target='_blank';a.rel='noopener noreferrer';details.append(document.createTextNode('\n'),a);}
+ const publishedIssue=typeof row.issueUrl==='string'?row.issueUrl.match(/^https:\/\/github\.com\/(?:Jamula\/FamilyHub|cyrusjamula\/family-hub)\/issues\/([1-9]\d*)$/):null;
+ if(publishedIssue){const a=document.createElement('a');a.href='https://github.com/Jamula/FamilyHub/issues/'+publishedIssue[1];a.textContent='Open GitHub issue';a.target='_blank';a.rel='noopener noreferrer';details.append(document.createTextNode('\n'),a);}
  feedbackEl('feedback-report-image').hidden=!row.hasScreenshot;feedbackEl('feedback-report-image').removeAttribute('src');
  if(row.hasScreenshot)feedbackEl('feedback-report-image').src='/api/feedback/image?id='+encodeURIComponent(id);
  feedbackEl('feedback-owner-review').hidden=feedbackMe.role!=='owner'||row.state!=='pending';
@@ -200,7 +201,7 @@ feedbackRecover.onclick=()=>feedbackRun(async()=>{
  const id=feedbackSelected?.id,issueNumber=Number(feedbackIssueNumber.value);
  if(!id||!Number.isSafeInteger(issueNumber)||issueNumber<1)throw Error('Enter the existing issue number from GitHub');
  const result=await feedbackRequest('/reconcile',{id,issueNumber,confirmExistingIssue:true});
- if(result?.state!=='published'||result.issueUrl!=='https://github.com/cyrusjamula/family-hub/issues/'+issueNumber)throw Error('Verification acknowledgement is invalid. Check the saved report before trying again.');
+ if(result?.state!=='published'||result.issueUrl!=='https://github.com/Jamula/FamilyHub/issues/'+issueNumber)throw Error('Verification acknowledgement is invalid. Check the saved report before trying again.');
  const receipt='Existing GitHub issue verified and linked. Reference: '+id+'. Issue: '+result.issueUrl+'. No issue was created or resent.';
  feedbackEl('feedback-status').textContent=receipt;
  if(feedbackSelected?.id===id){feedbackSelected={...feedbackSelected,state:'published',issueUrl:result.issueUrl};feedbackRecovery.hidden=true;}

@@ -1,5 +1,5 @@
 // Read-only provider reconciliation: this module never creates or retries an issue.
-const repo='cyrusjamula/family-hub';
+const repo='Jamula/FamilyHub';
 const issueURL=n=>'https://github.com/'+repo+'/issues/'+n;
 export async function verifyPublishedFeedback(number,payload,token,send=fetch){
  if(!Number.isSafeInteger(number)||number<1||!token||typeof payload?.title!=='string'||typeof payload?.body!=='string')throw Error('Existing issue could not be verified');

@@ -70,12 +70,39 @@ test('opening a restricted report expands its enclosing triage panel',async()=>{
  const c=await client();c.elements['feedback-triage'].open=false;
  await c.hooks.showFeedbackReport('synthetic-id');assert.equal(c.elements['feedback-triage'].open,true);assert.equal(c.elements['feedback-report'].hidden,false);
 });
+test('saved feedback shows only canonical FamilyHub issue links',async t=>{
+ const canonicalUrl='https://github.com/Jamula/FamilyHub/issues/73';
+ const cases=[
+  {name:'canonical URL',issueUrl:canonicalUrl,showsLink:true},
+  {name:'historical URL',issueUrl:'https://github.com/cyrusjamula/family-hub/issues/73',showsLink:true},
+  {name:'unrelated repository',issueUrl:'https://github.com/Jamula/OtherRepo/issues/73',showsLink:false},
+  {name:'unrelated origin',issueUrl:'https://github.example.test/Jamula/FamilyHub/issues/73',showsLink:false},
+  {name:'malformed issue number',issueUrl:'https://github.com/Jamula/FamilyHub/issues/not-a-number',showsLink:false},
+ ];
+ for(const {name,issueUrl,showsLink} of cases){
+  await t.test(name,async()=>{
+   const c=await client();
+   c.setIntercept(({url})=>url.includes('/report?id=')?Response.json({
+    id:'synthetic-id',title:'Synthetic',details:'Safe',state:'published',issueUrl,
+   }):undefined);
+   await c.hooks.showFeedbackReport('synthetic-id');
+   const links=c.elements['feedback-report-details'].children.filter(child=>child.tag==='a');
+   if(showsLink){
+    assert.equal(links.length,1);
+    assert.equal(links[0].href,canonicalUrl);
+    assert.equal(links[0].textContent,'Open GitHub issue');
+   }else{
+    assert.equal(links.length,0);
+   }
+  });
+ }
+});
 test('only owner uncertain reports offer read-only recovery and preserve the selected report ID',async()=>{
  const c=await client({autoOpen:false});let recovered=false;
  c.setIntercept(({url,body})=>{
   if(url==='/api/me')return Response.json({id:'cyrus',name:'Cyrus',role:'owner'});
   if(url.includes('/report?id='))return Response.json({id:'synthetic-id',title:'Synthetic',details:'Safe',state:recovered?'published':'uncertain',context:'unspecified'});
-  if(url.endsWith('/reconcile')){assert.equal(body.id,'synthetic-id');assert.equal(body.issueNumber,73);assert.equal(body.confirmExistingIssue,true);recovered=true;return Response.json({state:'published',issueUrl:'https://github.com/cyrusjamula/family-hub/issues/73'});}
+  if(url.endsWith('/reconcile')){assert.equal(body.id,'synthetic-id');assert.equal(body.issueNumber,73);assert.equal(body.confirmExistingIssue,true);recovered=true;return Response.json({state:'published',issueUrl:'https://github.com/Jamula/FamilyHub/issues/73'});}
  });
  await c.hooks.openFeedback();await c.hooks.showFeedbackReport('synthetic-id');
  assert.equal(c.elements['feedback-recovery'].hidden,false);assert.equal(c.elements['feedback-owner-review'].hidden,true);
@@ -87,7 +114,7 @@ test('only owner uncertain reports offer read-only recovery and preserve the sel
  await child.hooks.showFeedbackReport('synthetic-id');assert.equal(child.elements['feedback-recovery'].hidden,true);
 });
 test('malformed recovery acknowledgement never claims an existing issue was verified',async()=>{
- for(const reply of [{},{state:'published',issueUrl:'https://evil.test/issues/73'},{state:'pending',issueUrl:'https://github.com/cyrusjamula/family-hub/issues/73'}]){
+ for(const reply of [{},{state:'published',issueUrl:'https://evil.test/issues/73'},{state:'pending',issueUrl:'https://github.com/Jamula/FamilyHub/issues/73'}]){
   const c=await client({autoOpen:false});c.setIntercept(({url})=>{
    if(url==='/api/me')return Response.json({id:'cyrus',name:'Cyrus',role:'owner'});
    if(url.includes('/report?id='))return Response.json({id:'synthetic-id',title:'Synthetic',details:'Safe',state:'uncertain'});
@@ -102,7 +129,7 @@ test('verified recovery retains its receipt and attempts both refreshes when eit
   const c=await client({autoOpen:false});let recovered=false,detailRefreshes=0,listRefreshes=0;
   c.setIntercept(({url})=>{
    if(url==='/api/me')return Response.json({id:'cyrus',name:'Cyrus',role:'owner'});
-   if(url.endsWith('/reconcile')){recovered=true;return Response.json({state:'published',issueUrl:'https://github.com/cyrusjamula/family-hub/issues/73'});}
+   if(url.endsWith('/reconcile')){recovered=true;return Response.json({state:'published',issueUrl:'https://github.com/Jamula/FamilyHub/issues/73'});}
    if(url.includes('/report?id=')){
     if(recovered){detailRefreshes++;if(fail!=='list')throw Error('detail unavailable');}
     return Response.json({id:'synthetic-id',title:'Synthetic',details:'Safe',state:recovered?'published':'uncertain'});

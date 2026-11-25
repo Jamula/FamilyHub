@@ -93,7 +93,7 @@ test('daily report cap is per person and remains atomic with concurrent submissi
 test('public preview is exact, respects name consent, and excludes private image, email and metadata',async()=>{
  const {sql,api}=fixture(),body={...draft(),confirmScreenshot:true,screenshot:image};await api('/submit',body,child);
  const preview=await (await api('/preview',{id:body.id,publicTitle:'Sanitized title',publicDetails:'Sanitized details @someone <script>'})).json();
- assert.equal(preview.visibility,'public');assert.equal(preview.repository,'cyrusjamula/family-hub');
+ assert.equal(preview.visibility,'public');assert.equal(preview.repository,'Jamula/FamilyHub');
  const text=JSON.stringify(preview.payload);assert.ok(!text.includes(child.email));assert.ok(!text.includes('Iyanah'));assert.ok(!text.includes(image.data));assert.ok(!text.includes('@someone'));assert.ok(!text.includes('<script>'));assert.match(text,/Restricted report and screenshot/);assert.match(text,/Context: chat/);
  const row=sql.prepare('SELECT * FROM feedback').get();assert.match(issuePayload(row,{includeName:true,context:'settings'},{publicTitle:'T',publicDetails:'D'}).body,/Reporter: Iyanah/);sql.close();
 });
@@ -119,7 +119,7 @@ test('missing connection, absent approval and changed digest never call GitHub',
 test('only exact owner-approved issue is created once under concurrent publish attempts',async()=>{
  const {sql,api}=fixture(),body={...draft(),confirmScreenshot:true,screenshot:image};await api('/submit',body,child);
  const review={id:body.id,publicTitle:'Approved title',publicDetails:'Approved description'},preview=await (await api('/preview',review)).json();let calls=0;
- const provider=async(url,init)=>{calls++;assert.equal(url,'https://api.github.com/repos/cyrusjamula/family-hub/issues');assert.equal(init.redirect,'manual');assert.deepEqual(JSON.parse(init.body),preview.payload);assert.equal(init.body.includes(image.data),false);return Response.json({number:123,html_url:'https://github.com/cyrusjamula/family-hub/issues/123'},{status:201});};
+ const provider=async(url,init)=>{calls++;assert.equal(url,'https://api.github.com/repos/Jamula/FamilyHub/issues');assert.equal(init.redirect,'manual');assert.deepEqual(JSON.parse(init.body),preview.payload);assert.equal(init.body.includes(image.data),false);return Response.json({number:123,html_url:'https://github.com/Jamula/FamilyHub/issues/123'},{status:201});};
  const publish={...review,digest:preview.digest,confirmPublicIssue:true};
  const results=await Promise.all([api('/publish',publish,owner,provider),api('/publish',publish,owner,provider)]);assert.deepEqual(results.map(r=>r.status).sort(),[200,409]);assert.equal(calls,1);assert.equal(sql.prepare('SELECT state FROM feedback').get().state,'published');sql.close();
 });
@@ -127,7 +127,7 @@ test('timeouts, redirects, invalid provider URLs, and bookkeeping failure never 
  for(const failure of ['timeout','redirect','bad-url','bookkeeping']){
   const {sql,env,api}=fixture(),body=draft();await api('/submit',body,child);const review={id:body.id,publicTitle:'Reviewed',publicDetails:'Safe'};const preview=await (await api('/preview',review)).json();let calls=0;
   if(failure==='bookkeeping'){const prepare=env.DB.prepare.bind(env.DB);env.DB.prepare=query=>{if(query.startsWith("UPDATE feedback SET state='published'"))throw Error('completion write unavailable');return prepare(query);};}
-  const provider=async()=>{calls++;if(failure==='timeout')throw Error('timeout');if(failure==='redirect')return new Response(null,{status:302});return Response.json({number:123,html_url:failure==='bad-url'?'https://evil.test':'https://github.com/cyrusjamula/family-hub/issues/123'},{status:201});};
+  const provider=async()=>{calls++;if(failure==='timeout')throw Error('timeout');if(failure==='redirect')return new Response(null,{status:302});return Response.json({number:123,html_url:failure==='bad-url'?'https://evil.test':'https://github.com/Jamula/FamilyHub/issues/123'},{status:201});};
   const publish={...review,digest:preview.digest,confirmPublicIssue:true};assert.equal((await api('/publish',publish,owner,provider)).status,502);assert.equal((await api('/publish',publish,owner,provider)).status,409);assert.equal(calls,1);assert.equal(sql.prepare('SELECT state FROM feedback').get().state,'uncertain');sql.close();
  }
 });
@@ -156,7 +156,7 @@ async function uncertainFeedback(f){
 test('uncertain feedback links an exact existing issue with GET only and concurrent retries are idempotent',async()=>{
  const f=fixture();try{
   const {id,payload}=await uncertainFeedback(f);let calls=0;
-  const read=async(url,init)=>{calls++;assert.equal(url,'https://api.github.com/repos/cyrusjamula/family-hub/issues/73');assert.equal(init.method,'GET');assert.equal(init.redirect,'manual');assert.equal(init.body,undefined);return Response.json({...payload,number:73,html_url:'https://github.com/cyrusjamula/family-hub/issues/73'});};
+  const read=async(url,init)=>{calls++;assert.equal(url,'https://api.github.com/repos/Jamula/FamilyHub/issues/73');assert.equal(init.method,'GET');assert.equal(init.redirect,'manual');assert.equal(init.body,undefined);return Response.json({...payload,number:73,html_url:'https://github.com/Jamula/FamilyHub/issues/73'});};
   const body={id,issueNumber:73,confirmExistingIssue:true};
   const results=await Promise.all([f.api('/reconcile',body,owner,read),f.api('/reconcile',body,owner,read)]);
   assert.deepEqual(results.map(r=>r.status),[200,200]);assert.equal(calls,2);
@@ -173,7 +173,7 @@ test('recovery rejects mismatched issues, redirects, denied and oversized reads 
     if(failure==='network')throw Error('sensitive provider details');
     if(failure==='redirect')return new Response(null,{status:302});
     if(failure==='denied')return new Response(null,{status:403});
-    const issue={...payload,number:73,html_url:'https://github.com/cyrusjamula/family-hub/issues/73'};
+    const issue={...payload,number:73,html_url:'https://github.com/Jamula/FamilyHub/issues/73'};
     if(failure==='oversized')return Response.json({...issue,padding:'x'.repeat(131072)});
     if(failure==='pull-request')issue.pull_request={};else issue[{title:'title',body:'body',number:'number',url:'html_url'}[failure]]='wrong';
     return Response.json(issue);
@@ -195,8 +195,25 @@ test('recovery requires explicit confirmation and uncertain state before provide
 test('recovery cannot overwrite a concurrent change to the approved publication intent',async()=>{
  const f=fixture();try{
   const {id,payload}=await uncertainFeedback(f);
-  const read=async()=>{f.sql.prepare('UPDATE feedback SET public_payload=? WHERE id=?').run('changed',id);return Response.json({...payload,number:73,html_url:'https://github.com/cyrusjamula/family-hub/issues/73'});};
+  const read=async()=>{f.sql.prepare('UPDATE feedback SET public_payload=? WHERE id=?').run('changed',id);return Response.json({...payload,number:73,html_url:'https://github.com/Jamula/FamilyHub/issues/73'});};
   assert.equal((await f.api('/reconcile',{id,issueNumber:73,confirmExistingIssue:true},owner,read)).status,409);
   assert.equal(f.sql.prepare('SELECT state,issue_url FROM feedback').get().state,'uncertain');assert.equal(f.sql.prepare('SELECT issue_url FROM feedback').get().issue_url,null);
+ }finally{f.sql.close();}
+});
+
+
+test('historical published feedback links reconcile without a provider request or database mutation after repository transfer',async()=>{
+ const f=fixture();try{
+  const {id,payload}=await uncertainFeedback(f);
+  const body={id,issueNumber:73,confirmExistingIssue:true};
+  const read=async()=>Response.json({...payload,number:73,html_url:'https://github.com/Jamula/FamilyHub/issues/73'});
+  assert.equal((await f.api('/reconcile',body,owner,read)).status,200);
+  const legacy='https://github.com/cyrusjamula/family-hub/issues/73';
+  f.sql.prepare('UPDATE feedback SET issue_url=? WHERE id=?').run(legacy,id);
+  let requests=0;const noSend=async()=>{requests++;throw Error('must not contact provider');};
+  const response=await f.api('/reconcile',body,owner,noSend);
+  assert.deepEqual(await response.json(),{state:'published',issueUrl:'https://github.com/Jamula/FamilyHub/issues/73'});
+  assert.equal((await f.api('/reconcile',{...body,issueNumber:74},owner,noSend)).status,409);
+  assert.equal(requests,0);assert.equal(f.sql.prepare('SELECT issue_url FROM feedback WHERE id=?').get(id).issue_url,legacy);
  }finally{f.sql.close();}
 });
