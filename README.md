@@ -197,6 +197,10 @@ renderer/vendor files, local database state and dependency directories are build
 outputs, not hand-edited source. Never commit `.dev.vars`, `.env` files, secrets,
 private screenshots, raw diagnostics or database dumps.
 
+## Engineering standards and local development targets
+
+The project adopts **95% measured source line coverage and 90% measured branch coverage**, with a compact, meaningful test suite including negative paths, exceptions and fault injection. Establish and publish a real coverage baseline before enforcing the targets. OpenTelemetry is the observability standard and Aspire the local orchestration target; these integrations are not yet accepted or claimed to be operational. Keep local development synthetic, private production data isolated and additional spending at $0. See [the contribution standard](CONTRIBUTING.md#engineering-quality-and-developer-experience) and [agent instructions](AGENTS.md).
+
 ## Contribute and hand work to another agent
 
 Read [CONTRIBUTING.md](CONTRIBUTING.md) and [AGENTS.md](AGENTS.md).
