@@ -4,7 +4,7 @@ import {member} from './policy.js';
 import {digest} from './actions.js';
 import {verifyPublishedFeedback} from './feedback-recovery.js';
 
-const REPO='cyrusjamula/family-hub';
+const REPO='Jamula/FamilyHub';
 const HUB='https://jamula-family-coordinator.cyrus-7cd.workers.dev/';
 const uuid=/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/;
 const json=(data,status=200)=>Response.json(data,{status,headers:{'cache-control':'no-store'}});
@@ -95,7 +95,7 @@ export async function feedbackAPI(request,env,user,send=fetch){
   if(path==='/api/feedback/reconcile'){
    if(body.confirmExistingIssue!==true||!Number.isSafeInteger(body.issueNumber)||body.issueNumber<1)return json({error:'Confirm the existing GitHub issue number'},400);
    const existingURL='https://github.com/'+REPO+'/issues/'+body.issueNumber;
-   if(row.state==='published')return row.issue_url===existingURL?json({state:'published',issueUrl:existingURL}):json({error:'Report already linked to another issue'},409);
+   if(row.state==='published')return (row.issue_url===existingURL||row.issue_url==='https://github.com/cyrusjamula/family-hub/issues/'+body.issueNumber)?json({state:'published',issueUrl:existingURL}):json({error:'Report already linked to another issue'},409);
    if(row.state!=='uncertain'||!row.public_payload)return json({error:'Only an uncertain publication can be reconciled'},409);
    if(!env.GITHUB_FEEDBACK_TOKEN)return json({error:'GitHub feedback connection is not configured'},503);
    const approved=await open(env,row.public_payload,'feedback-public:'+row.id);

@@ -75,7 +75,7 @@ test('only owner uncertain reports offer read-only recovery and preserve the sel
  c.setIntercept(({url,body})=>{
   if(url==='/api/me')return Response.json({id:'cyrus',name:'Cyrus',role:'owner'});
   if(url.includes('/report?id='))return Response.json({id:'synthetic-id',title:'Synthetic',details:'Safe',state:recovered?'published':'uncertain',context:'unspecified'});
-  if(url.endsWith('/reconcile')){assert.equal(body.id,'synthetic-id');assert.equal(body.issueNumber,73);assert.equal(body.confirmExistingIssue,true);recovered=true;return Response.json({state:'published',issueUrl:'https://github.com/cyrusjamula/family-hub/issues/73'});}
+  if(url.endsWith('/reconcile')){assert.equal(body.id,'synthetic-id');assert.equal(body.issueNumber,73);assert.equal(body.confirmExistingIssue,true);recovered=true;return Response.json({state:'published',issueUrl:'https://github.com/Jamula/FamilyHub/issues/73'});}
  });
  await c.hooks.openFeedback();await c.hooks.showFeedbackReport('synthetic-id');
  assert.equal(c.elements['feedback-recovery'].hidden,false);assert.equal(c.elements['feedback-owner-review'].hidden,true);
@@ -87,7 +87,7 @@ test('only owner uncertain reports offer read-only recovery and preserve the sel
  await child.hooks.showFeedbackReport('synthetic-id');assert.equal(child.elements['feedback-recovery'].hidden,true);
 });
 test('malformed recovery acknowledgement never claims an existing issue was verified',async()=>{
- for(const reply of [{},{state:'published',issueUrl:'https://evil.test/issues/73'},{state:'pending',issueUrl:'https://github.com/cyrusjamula/family-hub/issues/73'}]){
+ for(const reply of [{},{state:'published',issueUrl:'https://evil.test/issues/73'},{state:'pending',issueUrl:'https://github.com/Jamula/FamilyHub/issues/73'}]){
   const c=await client({autoOpen:false});c.setIntercept(({url})=>{
    if(url==='/api/me')return Response.json({id:'cyrus',name:'Cyrus',role:'owner'});
    if(url.includes('/report?id='))return Response.json({id:'synthetic-id',title:'Synthetic',details:'Safe',state:'uncertain'});
@@ -102,7 +102,7 @@ test('verified recovery retains its receipt and attempts both refreshes when eit
   const c=await client({autoOpen:false});let recovered=false,detailRefreshes=0,listRefreshes=0;
   c.setIntercept(({url})=>{
    if(url==='/api/me')return Response.json({id:'cyrus',name:'Cyrus',role:'owner'});
-   if(url.endsWith('/reconcile')){recovered=true;return Response.json({state:'published',issueUrl:'https://github.com/cyrusjamula/family-hub/issues/73'});}
+   if(url.endsWith('/reconcile')){recovered=true;return Response.json({state:'published',issueUrl:'https://github.com/Jamula/FamilyHub/issues/73'});}
    if(url.includes('/report?id=')){
     if(recovered){detailRefreshes++;if(fail!=='list')throw Error('detail unavailable');}
     return Response.json({id:'synthetic-id',title:'Synthetic',details:'Safe',state:recovered?'published':'uncertain'});
