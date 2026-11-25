@@ -9,6 +9,10 @@ Family Hub has public source and a **restricted family runtime**. Read [README.m
 4. Open a scoped PR explaining behavior, tests actually run, privacy implications and unverified rollout steps. Address current-head findings and pass required review before merge.
 5. Track each status separately: **planned → built → tested → reviewed/merged → deployed source verified → real user accepted**. Do not close a functional issue based on mocked tests or a green build alone.
 
+## Final review and fast iteration
+
+Keep incomplete work in draft. Batch related fixes and run targeted tests before pushing; automatic review on every push may be disabled to avoid repeated review cycles. Before proposing a merge, obtain an independent explicit approval for the exact final head, verify required CI/security and resolved conversations, and recheck after any new commit or branch refresh. A completed review workflow or an earlier approval is not evidence of current-head approval. Request final re-review only within verified included capacity; if unavailable, leave the PR blocked. Do not enable automatic merge or bypass protections to compensate for missing reviews. Native approval enforcement must be verified under #81 before retiring any custom review gate.
+
 ## Engineering quality and developer experience
 
 - Target at least **95% measured source line coverage and 90% measured branch coverage**, overall and for critical components. Report function coverage as a diagnostic. First establish a reproducible baseline using the pinned Node runtime and repository-owned source; exclude generated/vendor assets and test fixtures only with documented justification. Do not silently exclude uncovered production logic.
