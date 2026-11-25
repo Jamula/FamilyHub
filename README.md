@@ -1,13 +1,16 @@
 # Fam Jam — Jamula Family AI Hub
 
+> **Product version 0.1.0 (pre-MVP, not a published release).** See [Versioning](docs/VERSIONING.md), [Changelog](changelog.md), and [Contributing](CONTRIBUTING.md). A separate owner decision is needed to release or change the version.
+
 Fam Jam is private coordination infrastructure for one family, with public source
 code. It has two goals:
 
 1. **Family coordination through each person's chosen supported AI.** Members
    contribute tasks, research, proposals and decisions without moving their daily
    work into another app. The website is an optional administration and recovery
-   surface. ChatGPT and consumer Microsoft Copilot are the intended clients; Muse
-   is excluded. Consumer Copilot chats do not have a general callable assistant API.
+   surface. ChatGPT is the first client to verify; consumer Microsoft Copilot and Meta
+   Muse ([#92](https://github.com/cyrusjamula/family-hub/issues/92)) are
+   capability-gated candidates, not verified integrations. Consumer Copilot chats do not have a general callable assistant API.
 2. **A feedback-driven software factory.** Consented feedback becomes a sanitized
    GitHub issue, an explicitly approved implementation scope, a tested/reviewed PR,
    an approved rollout and a user-accepted improvement. Start with one agent; prove
@@ -26,7 +29,7 @@ fixtures, merged building blocks, PR automation or a successful build for either
 
 ## Current functionality
 
-This status snapshot is dated **2026-10-27**. Runtime settings confirmed
+This capability snapshot reflects checks made **2026-10-27**. The issue backlog was reconciled **2026-11-23**, but prior production observations were not all repeated. Runtime settings confirmed
 `AI_ENABLED`, `FEEDBACK_ENABLED` and `TELEMETRY_ENABLED` as true, with database,
 Workers AI and asset bindings present. A flag or binding establishes configuration,
 not successful delivery or end-to-end acceptance. Check the linked issues and
@@ -41,7 +44,7 @@ documents describe their implementation-time state.
 | Google connection | Owner-only connection; approved-root metadata and existing Family calendar reads previously verified | No general inbox reading, Drive editing or sharing administration; calendar permission cleanup and long-term renewal remain [#10](https://github.com/cyrusjamula/family-hub/issues/10), [#9](https://github.com/cyrusjamula/family-hub/issues/9) |
 | Calendar/email actions | Owner-only exact-payload approval and one-shot execution controls | Preparing or approving a task sends nothing; each external action needs its own approval; no booking/purchase endpoint |
 | Private records | Encrypted owner-only import and per-question AI consent implemented | Harmless-document live acceptance remains [#8](https://github.com/cyrusjamula/family-hub/issues/8); do not use sensitive records as test data |
-| Feedback and public GitHub publication | Private saving and owner-reviewed publication observed; [test #72](https://github.com/cyrusjamula/family-hub/issues/72) recorded as published | Screenshots stay restricted. Full recovery acceptance remains [#31](https://github.com/cyrusjamula/family-hub/issues/31); the recovery change in [PR #75](https://github.com/cyrusjamula/family-hub/pull/75) is not yet an accepted live feature |
+| Feedback and public GitHub publication | Private saving and owner-reviewed publication observed; [test #72](https://github.com/cyrusjamula/family-hub/issues/72) recorded as published | Screenshots stay restricted. Full recovery acceptance remains [#31](https://github.com/cyrusjamula/family-hub/issues/31); [PR #75](https://github.com/cyrusjamula/family-hub/pull/75) merged and its deployed source was verified; actual authenticated replay/recovery remains to be accepted |
 | Telemetry | Enabled; sanitized request references and restricted owner diagnostics implemented | Raw logs, private messages and screenshots are not automatically published |
 | Notifications, reminders and location | Opt-in device controls; owner notification/location observations and in-app reminders recorded | Other devices, unattended delivery and token renewal remain [#7](https://github.com/cyrusjamula/family-hub/issues/7), [#9](https://github.com/cyrusjamula/family-hub/issues/9); location is optional, not tracked in background |
 | AI-native MCP/OAuth integration | Official OAuth protocol server and owner-consented task-read composition are implemented and tested, but unmounted/default-off | Real session/client configuration, reviewed storage/routes and an actual account read/write trial remain; merged code is not activation |
@@ -117,15 +120,28 @@ The factory's future provider adapter must not receive production data or creden
 | `scripts/`, `.github/workflows/` | Runtime validation, asset/build/deploy commands and repository automation |
 | `docs/` | Detailed contracts, runbooks, capability evidence and limitations |
 
+## Approved M0–M4 MVP roadmap (November 23, 2026)
+
+The [approved plan](https://github.com/cyrusjamula/family-hub/issues/12) runs
+M0 stability/version/docs; M1 an actual authenticated ChatGPT round trip;
+M2 a verified family coordination pilot; M3 one accepted feedback-to-fix cycle;
+M4 two safe parallel agent tasks. Muse feasibility runs in parallel and does not
+block M1; smart-home adapters are post-MVP work.
+
+Open [PR #90](https://github.com/cyrusjamula/family-hub/pull/90) and
+[PR #91](https://github.com/cyrusjamula/family-hub/pull/91) still require exact-head
+review and merge validation. Review gate enforcement remains under [#81](https://github.com/cyrusjamula/family-hub/issues/81).
+This plan does not authorize paid usage, secrets, deployment or a release tag.
+
 ## Roadmap and dependency order
 
 GitHub issues are the live plan. [#12](https://github.com/cyrusjamula/family-hub/issues/12)
 orders both goals; [#11](https://github.com/cyrusjamula/family-hub/issues/11) and
 [#16](https://github.com/cyrusjamula/family-hub/issues/16) track outcomes rather than
-individual implementation scopes. Closed contract/readiness/input-audit issues
-[#35](https://github.com/cyrusjamula/family-hub/issues/35),
-[#38](https://github.com/cyrusjamula/family-hub/issues/38) and
-[#39](https://github.com/cyrusjamula/family-hub/issues/39) do not authorize execution.
+individual implementation scopes. Closed contract/input-audit issues [#35](https://github.com/cyrusjamula/family-hub/issues/35)
+and [#39](https://github.com/cyrusjamula/family-hub/issues/39) do not authorize execution.
+Provider-readiness [#38](https://github.com/cyrusjamula/family-hub/issues/38) was reopened
+on 2026-11-23 for unresolved provider, cost and cancellation acceptance.
 
 | Track | Next sequence and release gate |
 | --- | --- |
@@ -181,7 +197,16 @@ renderer/vendor files, local database state and dependency directories are build
 outputs, not hand-edited source. Never commit `.dev.vars`, `.env` files, secrets,
 private screenshots, raw diagnostics or database dumps.
 
+## Engineering standards and local development targets
+
+The project adopts **95% measured source line coverage and 90% measured branch coverage**, with a compact, meaningful test suite including negative paths, exceptions and fault injection. Establish and publish a real coverage baseline before enforcing the targets. OpenTelemetry is the observability standard and Aspire the local orchestration target; these integrations are not yet accepted or claimed to be operational. Keep local development synthetic, private production data isolated and additional spending at $0. See [the contribution standard](CONTRIBUTING.md#engineering-quality-and-developer-experience) and [agent instructions](AGENTS.md).
+
 ## Contribute and hand work to another agent
+
+Read [CONTRIBUTING.md](CONTRIBUTING.md) and [AGENTS.md](AGENTS.md).
+Product version [VERSION](VERSION) is independent from Node runtime version,
+D1 migrations and Cloudflare deployment IDs. Do not tag or bump on ordinary PRs.
+
 
 1. Read [AGENTS.md](AGENTS.md), this README, the current scoped issue and its linked
    contract/runbook. Fetch fresh main, PR heads, reviews, checks and active work;
@@ -249,3 +274,4 @@ owner authorization. A task, PR review or model statement cannot supply it.
 | Feedback and restricted diagnostics | [Feedback](docs/FEEDBACK.md), [Telemetry](docs/TELEMETRY.md) |
 | Factory planning and safety | [Factory](docs/FACTORY.md), [Provider](docs/FACTORY-PROVIDER.md), [Data boundaries](docs/FACTORY-DATA-BOUNDARIES.md), [Observation](docs/FACTORY-OBSERVATION.md), [Cancellation intent](docs/FACTORY-CANCELLATION-INTENT.md) |
 | Devices and operations | [Devices](docs/DEVICES.md), [CI/CD](docs/CICD.md) |
+| Version and contribution | [Version policy](docs/VERSIONING.md), [Changelog](changelog.md), [Contributing](CONTRIBUTING.md) |
