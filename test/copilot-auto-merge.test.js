@@ -80,16 +80,11 @@ test('trusted workflow-run reconciliation reads all open PRs and propagates API 
  await assert.rejects(reconcilePullRequests(failed),/synthetic API failure/);
  assert.equal(failed.calls.length,0);
 });
-test('review notifications are unprivileged and reconciliation never checks out PR source',async()=>{
+test('legacy privileged auto-merge workflow is absent and review notifications remain unprivileged',async()=>{
  const observer=await readFile('.github/workflows/copilot-review-event.yml','utf8');
  assert.match(observer,/pull_request_review:/);assert.match(observer,/permissions: \{\}/);
  assert.doesNotMatch(observer,/actions\/checkout|secrets\.|github\.token/);
- const workflow=await readFile('.github/workflows/copilot-auto-merge.yml','utf8');
- assert.match(workflow,/pull_request_target:/);
- assert.match(workflow,/workflows: \[Observe Copilot reviews\]/);
- assert.match(workflow,/ref: \$\{\{ github\.workflow_sha \}\}/);
- assert.match(workflow,/persist-credentials: false/);
- assert.doesNotMatch(workflow,/pull_request\.head|workflow_run\.head|download-artifact/);
+ await assert.rejects(readFile('.github/workflows/copilot-auto-merge.yml','utf8'),{code:'ENOENT'});
 });
 
 test('transient unstable merge status retries with fresh state, and other errors surface',async()=>{
