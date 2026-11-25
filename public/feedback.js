@@ -91,7 +91,10 @@ async function openFeedback(id){
   // Keep the previous authenticated identity as an additional boundary even
   // when the host shell has no visible identity label.
   const changed=feedbackMe?.id&&(feedbackMe.id!==verified.id||feedbackMe.role!==verified.role);
-  if(changed||shown&&shown!=='Welcome, '+verified.name+' · '+verified.role){
+  // The initial shell placeholder is not evidence of an authenticated identity.
+  // A previously verified feedback identity still takes precedence over it.
+  const knownShellIdentity=shown&&shown!=='Signing in…';
+  if(changed||knownShellIdentity&&shown!=='Welcome, '+verified.name+' · '+verified.role){
    feedbackAuthExpired();
    throw Error('Reload the Hub to verify your account before capturing a page or submitting feedback.');
   }
