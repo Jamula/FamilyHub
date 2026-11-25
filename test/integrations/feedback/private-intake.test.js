@@ -38,3 +38,32 @@ test('submission ID conflicts request fresh consent without leaking ownership or
  assert.deepEqual(result,{ok:false,error:'Submission ID conflict; review the existing submission if authorized, or obtain fresh consent for a new submission ID'});
  assert.equal(calls,1);
 });
+
+test('persisted report survives lost or malformed acknowledgement and a freshly consented same-ID retry',async()=>{
+ for(const failure of ['lost','malformed']){
+  const reports=new Map();let consent='first-consent',checks=0,writes=0,attempts=0;
+  const gateway=createPrivateAiFeedback({enabled:true,resolvePrincipal:async()=>actor,
+   verifyConsent:async(_context,user,payload,confirmation)=>{
+    checks++;
+    return user===actor&&confirmation===consent&&payload.id===id&&payload.title===args.title&&payload.details===args.details;
+   },
+   save:async(request,_env,user)=>{
+    assert.equal(user,actor);const payload=await request.json();attempts++;
+    if(!reports.has(payload.id)){writes++;reports.set(payload.id,{id:payload.id,state:'pending'});}
+    if(attempts===1){
+     if(failure==='lost')throw Error('synthetic lost acknowledgement');
+     return Response.json({id:payload.id,state:'invalid'});
+    }
+    return Response.json(reports.get(payload.id));
+   }});
+  const first=await gateway.submit('verified-client',{...args,confirmation:'first-consent'},{});
+  assert.deepEqual(first,{ok:false,error:'Private feedback unavailable; preserve the draft and submission ID'});
+  assert.equal(reports.size,1);assert.equal(writes,1);
+  consent='fresh-consent';
+  assert.equal((await gateway.submit('verified-client',{...args,confirmation:'first-consent'},{})).ok,false);
+  assert.equal(attempts,1);
+  const retry=await gateway.submit('verified-client',{...args,confirmation:'fresh-consent'},{});
+  assert.deepEqual(retry,{ok:true,receipt:reports.get(id)});
+  assert.equal(checks,3);assert.equal(attempts,2);assert.equal(writes,1);assert.equal(reports.size,1);
+ }
+});
