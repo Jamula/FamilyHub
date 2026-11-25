@@ -70,6 +70,33 @@ test('opening a restricted report expands its enclosing triage panel',async()=>{
  const c=await client();c.elements['feedback-triage'].open=false;
  await c.hooks.showFeedbackReport('synthetic-id');assert.equal(c.elements['feedback-triage'].open,true);assert.equal(c.elements['feedback-report'].hidden,false);
 });
+test('saved feedback shows only canonical FamilyHub issue links',async t=>{
+ const canonicalUrl='https://github.com/Jamula/FamilyHub/issues/73';
+ const cases=[
+  {name:'canonical URL',issueUrl:canonicalUrl,showsLink:true},
+  {name:'historical URL',issueUrl:'https://github.com/cyrusjamula/family-hub/issues/73',showsLink:true},
+  {name:'unrelated repository',issueUrl:'https://github.com/Jamula/OtherRepo/issues/73',showsLink:false},
+  {name:'unrelated origin',issueUrl:'https://github.example.test/Jamula/FamilyHub/issues/73',showsLink:false},
+  {name:'malformed issue number',issueUrl:'https://github.com/Jamula/FamilyHub/issues/not-a-number',showsLink:false},
+ ];
+ for(const {name,issueUrl,showsLink} of cases){
+  await t.test(name,async()=>{
+   const c=await client();
+   c.setIntercept(({url})=>url.includes('/report?id=')?Response.json({
+    id:'synthetic-id',title:'Synthetic',details:'Safe',state:'published',issueUrl,
+   }):undefined);
+   await c.hooks.showFeedbackReport('synthetic-id');
+   const links=c.elements['feedback-report-details'].children.filter(child=>child.tag==='a');
+   if(showsLink){
+    assert.equal(links.length,1);
+    assert.equal(links[0].href,canonicalUrl);
+    assert.equal(links[0].textContent,'Open GitHub issue');
+   }else{
+    assert.equal(links.length,0);
+   }
+  });
+ }
+});
 test('only owner uncertain reports offer read-only recovery and preserve the selected report ID',async()=>{
  const c=await client({autoOpen:false});let recovered=false;
  c.setIntercept(({url,body})=>{
